@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZaloShift AI — Trợ lý Lọc & Tóm tắt Tin nhắn Trực Ca</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --glass-bg: rgba(255, 255, 255, 0.72);
+      --glass-bg-strong: rgba(255, 255, 255, 0.88);
+      --glass-border: rgba(255, 255, 255, 0.65);
+      --glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+      --accent-blue: #0284c7;
+      --accent-emerald: #059669;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #e0f2fe 0%, #f1f5f9 45%, #e2e8f0 100%);
+      color: #0f172a;
+      overflow-x: hidden;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Liquid Glass Surfaces */
+    .liquid-glass {
+      background: var(--glass-bg);
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+    }
+
+    .liquid-glass-strong {
+      background: var(--glass-bg-strong);
+      backdrop-filter: blur(24px) saturate(190%);
+      -webkit-backdrop-filter: blur(24px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+    }
+
+    .liquid-pill {
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.75);
+      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .liquid-pill:hover {
+      background: rgba(255, 255, 255, 0.9);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.12);
+    }
+
+    /* Excel-style Ribbon & Grid Scrollbars */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(241, 245, 249, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.55);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.8);
+    }
+
+    /* Excel Sheet Tab Active Indicator */
+    .sheet-tab {
+      position: relative;
+      transition: all 0.15s ease;
+    }
+    .sheet-tab.active {
+      background: rgba(255, 255, 255, 0.95);
+      color: #0369a1;
+      font-weight: 600;
+      box-shadow: 0 -2px 10px rgba(15, 23, 42, 0.06);
+    }
+    .sheet-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 8px;
+      right: 8px;
+      height: 3px;
+      background: #0284c7;
+      border-radius: 3px 3px 0 0;
+    }
+
+    /* Subtle Ambient Orbs for Liquid Glass Depth */
+    .ambient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Table Row Hover & Highlight */
+    .excel-row:hover {
+      background-color: rgba(224, 242, 254, 0.55);
+    }
+    .highlight-mark {
+      background-color: #fef08a;
+      color: #854d0e;
+      padding: 0 3px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col select-none sm:select-auto">
+
+  <!-- Ambient Background Orbs -->
+  <div class="ambient-orb w-96 h-96 bg-sky-300/35 top-[-80px] left-[-60px]"></div>
+  <div class="ambient-orb w-[500px] h-[500px] bg-emerald-200/30 bottom-[-120px] right-[-80px]"></div>
+  <div class="ambient-orb w-80 h-80 bg-indigo-200/25 top-1/3 left-1/2"></div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ===================================================================== -->
+  <!-- TOP HEADER & COLLAPSIBLE EXCEL-STYLE RIBBON                           -->
+  <!-- ===================================================================== -->
+  <header class="liquid-glass mx-2 mt-2 rounded-2xl z-30 flex flex-col">
+    <!-- Top Application Title & Menu Strip -->
+    <div class="flex flex-wrap items-center justify-between px-3 py-1.5 border-b border-white/60 gap-2">
+      <!-- Brand + Menu Tabs -->
+      <div class="flex items-center gap-1 sm:gap-2 overflow-x-auto">
+        <div class="flex items-center gap-2 pr-2 mr-1 border-r border-slate-300/60 shrink-0">
+          <div class="w-7 h-7 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center text-white shadow-sm">
+            <i class="fa-solid fa-layer-group text-xs"></i>
+          </div>
+          <span class="font-bold text-sm tracking-tight text-slate-800">ZaloShift <span class="text-sky-600">AI</span></span>
+        </div>
+
+        <!-- Excel-style Ribbon Category Tabs -->
+        <nav id="ribbon-tabs" class="flex items-center gap-1 text-xs font-medium">
+          <button data-ribbon="file" class="ribbon-tab-btn px-3 py-1.5 rounded-lg bg-sky-600 text-white shadow-sm transition">
+            <i class="fa-regular fa-folder-open mr-1"></i>File
+          </button>
+          <button data-ribbon="data" class="ribbon-tab-btn px-3 py-1.5 rounded-lg text-slate-700 hover:bg-white/70 transition">
+            <i class="fa-solid fa-filter mr-1"></i>Data
+          </button>
+          <button data-ribbon="ai" class="ribbon-tab-btn px-3 py-1.5 rounded-lg text-slate-700 hover:bg-white/70 transition">
+            <i class="fa-solid fa-wand-magic-sparkles mr-1 text-sky-600"></i>AI Tools
+          </button>
+          <button data-ribbon="security" class="ribbon-tab-btn px-3 py-1.5 rounded-lg text-slate-700 hover:bg-white/70 transition">
+            <i class="fa-solid fa-shield-halved mr-1 text-amber-600"></i>Security
+          </button>
+          <button data-ribbon="view" class="ribbon-tab-btn px-3 py-1.5 rounded-lg text-slate-700 hover:bg-white/70 transition">
+            <i class="fa-solid fa-sliders mr-1"></i>View
+          </button>
+        </nav>
+      </div>
+
+      <!-- Right Status & Ribbon Collapse Toggle -->
+      <div class="flex items-center gap-2 text-xs shrink-0">
+        <span id="cloud-status-badge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-800 border border-emerald-500/30 font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Shared Cloud Ready</span>
+        </span>
+        <button id="btn-share-link" title="Sao chép link chia sẻ cho đồng nghiệp" class="liquid-pill px-2.5 py-1 rounded-lg text-slate-700 font-medium flex items-center gap-1.5">
+          <i class="fa-solid fa-share-nodes text-sky-600"></i>
+          <span class="hidden md:inline">Chia sẻ Link</span>
+        </button>
+        <button id="btn-toggle-ribbon" title="Thu gọn / Mở rộng thanh công cụ" class="liquid-pill w-7 h-7 rounded-lg flex items-center justify-center text-slate-600">
+          <i id="ribbon-chevron" class="fa-solid fa-chevron-up text-xs"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Collapsible Ribbon Content Area -->
+    <div id="ribbon-body" class="px-3 py-2.5 transition-all duration-200">
+      <!-- RIBBON 1: FILE -->
+      <div id="ribbon-panel-file" class="ribbon-panel flex flex-wrap items-center gap-3">
+        <button id="btn-open-file-modal" class="liquid-pill px-3.5 py-2 rounded-xl flex items-center gap-2.5 text-left group">
+          <div class="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-600 flex items-center justify-center group-hover:bg-sky-600 group-hover:text-white transition">
+            <i class="fa-solid fa-file-import"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-800">Nhập File Zalo (.txt / .json)</div>
+            <div class="text-[11px] text-slate-500">Chọn nhóm & lọc ngày trước khi nạp</div>
+          </div>
+        </button>
+
+        <button id="btn-open-paste-modal" class="liquid-pill px-3.5 py-2 rounded-xl flex items-center gap-2.5 text-left group">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition">
+            <i class="fa-regular fa-clipboard"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-800">Dán Tin Nhắn Zalo</div>
+            <div class="text-[11px] text-slate-500">Hỗ trợ copy trực tiếp & Báo cáo TC/TK</div>
+          </div>
+        </button>
+
+        <div class="h-8 w-[1px] bg-slate-300/60 hidden sm:block"></div>
+
+        <button id="btn-export-csv" class="liquid-pill px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-medium text-slate-700">
+          <i class="fa-solid fa-file-excel text-emerald-600"></i>
+          <span>Xuất bảng lọc (.CSV)</span>
+        </button>
+
+        <button id="btn-python-helper" class="liquid-pill px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-medium text-slate-700">
+          <i class="fa-brands fa-python text-amber-600"></i>
+          <span>Tool hút tin Zalo PC</span>
+        </button>
+      </div>
+
+      <!-- RIBBON 2: DATA & FILTER -->
+      <div id="ribbon-panel-data" class="ribbon-panel hidden flex flex-wrap items-center gap-2.5 text-xs">
+        <div class="flex flex-col gap-0.5">
+          <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-1">Nhóm Zalo</label>
+          <select id="filter-group" class="bg-white/80 border border-white rounded-lg px-2.5 py-1.5 text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 min-w-[160px]">
+            <option value="ALL">Tất cả nhóm (All)</option>
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-0.5">
+          <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-1">Từ ngày / giờ</label>
+          <input type="datetime-local" id="filter-date-from" class="bg-white/80 border border-white rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+        <div class="flex flex-col gap-0.5">
+          <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-1">Đến ngày / giờ</label>
+          <input type="datetime-local" id="filter-date-to" class="bg-white/80 border border-white rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+        <div class="flex flex-col gap-0.5 flex-1 min-w-[180px]">
+          <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-1">Lọc nhanh Keyword / Người gửi</label>
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400"></i>
+            <input type="text" id="filter-keyword" placeholder="VD: HOLD, BFPT, PCV-1A, Nguyễn Vinh..." class="w-full bg-white/80 border border-white rounded-lg pl-8 pr-3 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+        </div>
+
+        <div class="flex items-end gap-1.5 pt-3.5">
+          <button id="btn-reset-filters" class="liquid-pill px-2.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 font-medium">
+            <i class="fa-solid fa-rotate-left mr-1"></i>Đặt lại
+          </button>
+          <button id="btn-clear-tab-data" class="liquid-pill px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 font-medium">
+            <i class="fa-regular fa-trash-can mr-1"></i>Xóa dữ liệu Tab
+          </button>
+        </div>
+      </div>
+
+      <!-- RIBBON 3: AI TOOLS -->
+      <div id="ribbon-panel-ai" class="ribbon-panel hidden flex flex-wrap items-center gap-3">
+        <button id="btn-ai-summarize-ribbon" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-sm hover:shadow transition flex items-center gap-2.5 text-left">
+          <i class="fa-solid fa-sparkles text-amber-300"></i>
+          <div>
+            <div class="text-xs font-semibold">AI Tóm Tắt Bàn Giao Ca</div>
+            <div class="text-[10px] text-sky-100">Phân loại thiết bị, bất thường & việc tồn đọng</div>
+          </div>
+        </button>
+
+        <button id="btn-ai-focus-qa" class="liquid-pill px-3.5 py-2 rounded-xl flex items-center gap-2.5 text-left">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-600 flex items-center justify-center">
+            <i class="fa-solid fa-crosshairs"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-800">Hỏi AI & Truy Vết Tin Nhắn Gốc</div>
+            <div class="text-[11px] text-slate-500">Xuất Người nhắn + Giờ + Keyword tìm lại trên Zalo</div>
+          </div>
+        </button>
+
+        <div class="text-[11px] text-slate-500 bg-white/50 px-3 py-1.5 rounded-lg border border-white/70">
+          <i class="fa-solid fa-circle-info text-sky-600 mr-1"></i>
+          AI chỉ đọc các tin nhắn đang hiển thị theo <strong>Bộ lọc thời gian & nhóm</strong> của Tab hiện tại.
+        </div>
+      </div>
+
+      <!-- RIBBON 4: SECURITY -->
+      <div id="ribbon-panel-security" class="ribbon-panel hidden flex flex-wrap items-center gap-3">
+        <button id="btn-set-tab-password" class="liquid-pill px-3.5 py-2 rounded-xl flex items-center gap-2.5 text-left">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center">
+            <i class="fa-solid fa-key"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-800">Cài / Đổi Mật Khẩu Tab Này</div>
+            <div class="text-[11px] text-slate-500">Bảo vệ dữ liệu trực ca riêng tư trên link dùng chung</div>
+          </div>
+        </button>
+
+        <button id="btn-lock-tab-now" class="liquid-pill px-3 py-2 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2">
+          <i class="fa-solid fa-lock text-amber-600"></i>
+          <span>Khóa Tab Ngay Lập Tức</span>
+        </button>
+
+        <button id="btn-remove-tab-password" class="liquid-pill px-3 py-2 rounded-xl text-xs font-medium text-rose-600 flex items-center gap-2">
+          <i class="fa-solid fa-lock-open"></i>
+          <span>Gỡ Mật Khẩu Tab</span>
+        </button>
+      </div>
+
+      <!-- RIBBON 5: VIEW -->
+      <div id="ribbon-panel-view" class="ribbon-panel hidden flex flex-wrap items-center gap-3 text-xs">
+        <button id="btn-toggle-density" class="liquid-pill px-3 py-2 rounded-xl font-medium text-slate-700 flex items-center gap-2">
+          <i class="fa-solid fa-table-cells text-sky-600"></i>
+          <span id="density-label">Chế độ dòng: Tiêu chuẩn</span>
+        </button>
+
+        <button id="btn-toggle-ai-pane" class="liquid-pill px-3 py-2 rounded-xl font-medium text-slate-700 flex items-center gap-2">
+          <i class="fa-solid fa-columns text-indigo-600"></i>
+          <span>Ẩn / Hiện Khung Trợ Lý AI</span>
+        </button>
+
+        <button id="btn-rename-tab" class="liquid-pill px-3 py-2 rounded-xl font-medium text-slate-700 flex items-center gap-2">
+          <i class="fa-solid fa-pen-to-square text-emerald-600"></i>
+          <span>Đổi tên Tab hiện tại</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- FORMULA / QUICK SEARCH BAR (EXCEL STYLE)                              -->
+  <!-- ===================================================================== -->
+  <div class="liquid-glass mx-2 mt-1.5 px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs">
+    <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/70 border border-white font-mono-tech font-semibold text-sky-700 shrink-0">
+      <span>fx</span>
+      <span id="active-cell-ref">FILTER</span>
+    </div>
+    <input id="quick-formula-search" type="text" placeholder="Gõ từ khóa cần lọc nhanh trong bảng (VD: HOLD, BFPT-1A, PCV-1A, reset MFT, Sio2)..." class="w-full bg-transparent focus:outline-none text-slate-800 placeholder:text-slate-400">
+    <div id="stats-counter" class="shrink-0 text-[11px] font-medium text-slate-600 bg-white/60 px-2.5 py-0.5 rounded-full border border-white">
+      0 tin nhắn
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN WORKSPACE: DATA GRID (LEFT) + AI ASSISTANT (RIGHT)               -->
+  <!-- ===================================================================== -->
+  <main class="flex-1 flex flex-col lg:flex-row gap-2 mx-2 mt-1.5 mb-1.5 min-h-0 relative">
+
+    <!-- PASSWORD LOCK OVERLAY (Shown when active tab is locked) -->
+    <div id="tab-lock-screen" class="hidden absolute inset-0 z-20 liquid-glass-strong rounded-2xl flex flex-col items-center justify-center p-6 text-center">
+      <div class="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-400/40 text-amber-600 flex items-center justify-center text-2xl mb-3 shadow-inner">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+      <h2 id="lock-screen-title" class="text-lg font-bold text-slate-800">Tab này được bảo vệ bằng mật khẩu</h2>
+      <p class="text-xs text-slate-500 max-w-md mt-1 mb-4">Nhập mật khẩu cá nhân của chủ sở hữu Tab để mở khóa lịch sử tin nhắn và dữ liệu phân tích AI.</p>
+      <form id="unlock-tab-form" class="flex items-center gap-2 w-full max-w-xs">
+        <input type="password" id="unlock-password-input" placeholder="Nhập mật khẩu Tab..." required class="flex-1 bg-white/90 border border-slate-300 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+        <button type="submit" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold shadow-sm transition">
+          Mở khóa
+        </button>
+      </form>
+      <p id="unlock-error-msg" class="text-xs text-rose-600 font-medium mt-2 hidden">Mật khẩu không chính xác. Vui lòng thử lại.</p>
+    </div>
+
+    <!-- LEFT PANEL: EXCEL-STYLE DATA GRID -->
+    <section id="grid-pane" class="flex-1 liquid-glass rounded-2xl flex flex-col min-h-0 overflow-hidden">
+      <!-- Grid Header Bar -->
+      <div class="px-3 py-2 border-b border-white/60 flex items-center justify-between bg-white/30">
+        <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+          <i class="fa-solid fa-table text-sky-600"></i>
+          <span id="grid-sheet-title">Dữ liệu tin nhắn đã lọc</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-[11px] text-slate-500">
+          <span id="dedupe-badge" class="hidden px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 font-medium"></span>
+          <span>Bấm vào từ khóa để sao chép tìm trên Zalo</span>
+        </div>
+      </div>
+
+      <!-- Scrollable Table -->
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-left border-collapse">
+          <thead class="sticky top-0 z-10 bg-slate-100/90 backdrop-blur-md text-[11px] uppercase tracking-wider text-slate-600 border-b border-slate-200/80">
+            <tr>
+              <th class="py-2 px-2.5 w-10 text-center border-r border-slate-200/60">#</th>
+              <th class="py-2 px-3 w-36 border-r border-slate-200/60">Thời gian</th>
+              <th class="py-2 px-3 w-40 border-r border-slate-200/60">Nhóm</th>
+              <th class="py-2 px-3 w-44 border-r border-slate-200/60">Người gửi</th>
+              <th class="py-2 px-3 border-r border-slate-200/60">Nội dung tin nhắn</th>
+              <th class="py-2 px-3 w-48">Từ khóa kỹ thuật</th>
+            </tr>
+          </thead>
+          <tbody id="messages-tbody" class="text-xs divide-y divide-slate-200/50 bg-white/35">
+            <!-- Rows injected dynamically -->
+          </tbody>
+        </table>
+
+        <!-- Empty State -->
+        <div id="empty-grid-state" class="hidden flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div class="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-600 flex items-center justify-center text-xl mb-3">
+            <i class="fa-regular fa-comments"></i>
+          </div>
+          <p class="text-sm font-semibold text-slate-700">Chưa có tin nhắn nào khớp với bộ lọc</p>
+          <p class="text-xs text-slate-500 max-w-sm mt-1">Bấm <strong>File → Nhập File Zalo</strong> hoặc <strong>Dán Tin Nhắn Zalo</strong> để nạp dữ liệu trực ca mới.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: AI SHIFT SUMMARY & TRACEABILITY Q&A -->
+    <aside id="ai-pane" class="w-full lg:w-[430px] xl:w-[470px] liquid-glass rounded-2xl flex flex-col min-h-[340px] lg:min-h-0 overflow-hidden shrink-0">
+      <!-- AI Sub-tabs -->
+      <div class="p-2 border-b border-white/60 bg-white/30 flex items-center justify-between gap-2">
+        <div class="flex bg-slate-200/60 p-0.5 rounded-xl w-full">
+          <button id="subtab-btn-summary" class="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-white text-sky-700 shadow-sm transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-file-lines"></i>
+            <span>Tóm tắt Bàn giao</span>
+          </button>
+          <button id="subtab-btn-qa" class="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-magnifying-glass-location"></i>
+            <span>Hỏi AI & Truy vết</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- SUB-PANEL 1: SHIFT SUMMARY -->
+      <div id="ai-panel-summary" class="flex-1 flex flex-col min-h-0 p-3 overflow-y-auto">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="text-xs text-slate-600">
+            Tổng hợp <strong id="summary-msg-count" class="text-sky-700">0</strong> tin nhắn đang lọc
+          </div>
+          <button id="btn-run-summary" class="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>Tóm tắt ngay</span>
+          </button>
+        </div>
+
+        <div id="summary-output" class="flex-1 bg-white/55 border border-white/80 rounded-xl p-3.5 text-xs leading-relaxed text-slate-700 overflow-y-auto space-y-3">
+          <div class="text-center text-slate-400 py-8">
+            <i class="fa-solid fa-robot text-2xl mb-2 text-sky-500/60"></i>
+            <p>Bấm <strong>"Tóm tắt ngay"</strong> để AI phân loại các đầu việc vận hành, thử nghiệm và bất thường trong khoảng thời gian bạn đã chọn.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-PANEL 2: AI Q&A & TRACEABILITY -->
+      <div id="ai-panel-qa" class="hidden flex-1 flex flex-col min-h-0">
+        <!-- Quick Suggested Questions -->
+        <div class="px-3 pt-2.5 pb-1.5 flex gap-1.5 overflow-x-auto shrink-0 border-b border-white/40">
+          <button class="qa-suggestion shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-white/70 hover:bg-white text-sky-700 border border-white font-medium transition">
+            Logic HOLD/NOT HOLD ở tin nhắn nào?
+          </button>
+          <button class="qa-suggestion shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-white/70 hover:bg-white text-sky-700 border border-white font-medium transition">
+            Tình trạng van PCV-1A & BFPT?
+          </button>
+          <button class="qa-suggestion shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-white/70 hover:bg-white text-sky-700 border border-white font-medium transition">
+            Có sự cố hay thông số nào chưa đạt?
+          </button>
+        </div>
+
+        <!-- Chat & Traceability Cards History -->
+        <div id="qa-chat-feed" class="flex-1 overflow-y-auto p-3 space-y-3 text-xs">
+          <div class="bg-white/65 border border-white rounded-xl p-3 text-slate-600">
+            <div class="font-semibold text-sky-700 mb-1"><i class="fa-solid fa-crosshairs mr-1"></i>Trợ lý Truy vết Tin nhắn Zalo</div>
+            Đặt câu hỏi bằng tiếng Việt tự nhiên (VD: <em>"Ai nhắn về logic HOLD/NOT HOLD, nội dung là gì?"</em>). Tôi sẽ tóm tắt hội thoại và xuất <strong>Thẻ truy vết (Người gửi + Giờ + Từ khóa tìm trên Zalo)</strong> để bạn mở lại đúng tin nhắn gốc.
+          </div>
+        </div>
+
+        <!-- Input Box -->
+        <form id="qa-form" class="p-2.5 border-t border-white/60 bg-white/40 flex gap-2">
+          <input type="text" id="qa-input" placeholder="Hỏi nội dung cần tìm lại trên Zalo..." required class="flex-1 bg-white/90 border border-white rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500">
+          <button type="submit" id="btn-qa-submit" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-sm transition shrink-0">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </form>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- BOTTOM BAR: EXCEL-STYLE MULTI-USER WORKSPACE SHEET TABS               -->
+  <!-- ===================================================================== -->
+  <footer class="liquid-glass mx-2 mb-2 px-2 py-1 rounded-xl flex items-center justify-between gap-2 text-xs z-20">
+    <div class="flex items-center gap-1 overflow-x-auto flex-1 py-0.5" id="sheet-tabs-list">
+      <!-- Dynamic Workspace Tabs injected here -->
+    </div>
+    <button id="btn-add-sheet-tab" title="Tạo Tab làm việc mới cho cá nhân/nhóm" class="liquid-pill px-2.5 py-1 rounded-lg text-sky-700 font-semibold flex items-center gap-1 shrink-0">
+      <i class="fa-solid fa-plus"></i>
+      <span>Thêm Tab</span>
+    </button>
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- MODALS (FILE PRE-FILTER IMPORT, PASTE ZALO, PASSWORD, PYTHON HELPER)  -->
+  <!-- ===================================================================== -->
+
+  <!-- MODAL 1: IMPORT FILE WITH PRE-FILTER (GROUP & DATE RANGE) -->
+  <div id="modal-file-import" class="hidden fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="liquid-glass-strong rounded-2xl w-full max-w-xl p-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/70">
+        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-file-import text-sky-600"></i>
+          <span>Nhập File Lịch Sử Zalo (Lọc trước khi nạp)</span>
+        </h3>
+        <button class="modal-close text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="mt-4 space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">1. Chọn file xuất từ Zalo hoặc Script (.txt, .json)</label>
+          <input type="file" id="file-import-input" accept=".txt,.json,.csv,.log" class="w-full bg-white/80 border border-dashed border-sky-400 rounded-xl p-3 text-slate-700 cursor-pointer">
+        </div>
+
+        <div id="file-prefilter-box" class="hidden space-y-3 bg-white/60 p-3.5 rounded-xl border border-white">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-sky-800"><i class="fa-solid fa-filter mr-1"></i>2. Chọn vùng dữ liệu cần cắt nhập:</span>
+            <span id="file-scan-summary" class="text-[11px] font-medium text-slate-500"></span>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Chọn Nhóm chat trong file:</label>
+            <select id="import-group-select" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 font-medium text-slate-800">
+              <option value="ALL">Tất cả nhóm tìm thấy trong file</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">Chỉ lấy từ ngày/giờ:</label>
+              <input type="datetime-local" id="import-date-from" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-800">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">Đến ngày/giờ:</label>
+              <input type="datetime-local" id="import-date-to" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-800">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 flex justify-end gap-2 text-xs">
+        <button class="modal-close px-4 py-2 rounded-xl bg-slate-200/70 hover:bg-slate-200 text-slate-700 font-medium">Hủy</button>
+        <button id="btn-confirm-file-import" disabled class="px-4 py-2 rounded-xl bg-sky-600 disabled:opacity-40 hover:bg-sky-700 text-white font-semibold shadow-sm transition">
+          Cắt lọc & Nạp vào Tab
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: PASTE ZALO TEXT DIRECTLY -->
+  <div id="modal-paste-zalo" class="hidden fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="liquid-glass-strong rounded-2xl w-full max-w-xl p-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/70">
+        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+          <i class="fa-regular fa-clipboard text-emerald-600"></i>
+          <span>Dán Tin Nhắn Copy Từ Zalo Desktop</span>
+        </h3>
+        <button class="modal-close text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="mt-3 space-y-3 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Tên nhóm Zalo (Tùy chọn):</label>
+            <input type="text" id="paste-group-name" placeholder="VD: PXVH. GROUP TRỰC CA" value="PXVH. GROUP TRỰC CA" class="w-full bg-white/90 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Ngày mặc định (nếu đoạn copy thiếu ngày):</label>
+            <input type="date" id="paste-default-date" class="w-full bg-white/90 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Dán nội dung đã copy từ Zalo vào đây:</label>
+          <textarea id="paste-raw-textarea" rows="8" placeholder="Ví dụ:&#10;Báo cáo TC,TK,MT @Nguyễn Vinh NĐQT1 : hiện tại nt đã đóng các van tay xả nước làm mát kín ở BFpT 2A,2B...&#10;Báo cáo TC, TK, MT: sau khi lắp đặt xong phần bonnet và Plug vào trong thân van PCV-1A LPBP..." class="w-full bg-white/90 border border-slate-200 rounded-xl p-3 font-mono-tech text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+        </div>
+      </div>
+
+      <div class="mt-4 flex justify-end gap-2 text-xs">
+        <button class="modal-close px-4 py-2 rounded-xl bg-slate-200/70 hover:bg-slate-200 text-slate-700 font-medium">Đóng</button>
+        <button id="btn-confirm-paste" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm transition">
+          Phân tích & Chống trùng lặp
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: PASSWORD SETUP / NEW TAB MODAL -->
+  <div id="modal-generic-prompt" class="hidden fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="liquid-glass-strong rounded-2xl w-full max-w-md p-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/70">
+        <h3 id="prompt-modal-title" class="font-bold text-sm text-slate-800">Thiết lập</h3>
+        <button class="modal-close text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="prompt-modal-form" class="mt-4 space-y-3 text-xs">
+        <p id="prompt-modal-desc" class="text-slate-600"></p>
+        <div>
+          <label id="prompt-input-1-label" class="block font-semibold text-slate-700 mb-1"></label>
+          <input id="prompt-input-1" type="text" required class="w-full bg-white/90 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+        <div id="prompt-input-2-wrapper" class="hidden">
+          <label id="prompt-input-2-label" class="block font-semibold text-slate-700 mb-1"></label>
+          <input id="prompt-input-2" type="password" placeholder="Để trống nếu không cần khóa mật khẩu" class="w-full bg-white/90 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" class="modal-close px-4 py-2 rounded-xl bg-slate-200/70 text-slate-700 font-medium">Hủy</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold">Xác nhận</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: PYTHON COLLECTOR HELPER FOR ZALO DESKTOP -->
+  <div id="modal-python-helper" class="hidden fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="liquid-glass-strong rounded-2xl w-full max-w-2xl p-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200/70">
+        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+          <i class="fa-brands fa-python text-amber-600"></i>
+          <span>Script Tự Động Hút Tin Nhắn Từ Zalo Desktop (Windows)</span>
+        </h3>
+        <button class="modal-close text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="mt-3 space-y-2.5 text-xs text-slate-600">
+        <p>Vì ứng dụng Zalo Desktop trên Windows đóng API và không cho xuất file trực tiếp, bạn có thể lưu đoạn mã Python dưới đây thành file <code class="bg-slate-200/80 px-1.5 py-0.5 rounded font-mono-tech">zalo_export.py</code> (cài thư viện <code class="bg-slate-200/80 px-1.5 py-0.5 rounded font-mono-tech">pip install uiautomation</code>) để tự động cuộn và xuất tin nhắn nhóm đang mở ra file <code class="bg-slate-200/80 px-1.5 py-0.5 rounded font-mono-tech">.txt</code> nạp vào web:</p>
+        <div class="relative">
+          <button id="btn-copy-python-code" class="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-sky-600 text-white text-[11px] font-semibold hover:bg-sky-700">
+            <i class="fa-regular fa-copy mr-1"></i>Copy Code
+          </button>
+          <pre id="python-script-code" class="bg-slate-900 text-emerald-300 p-3.5 rounded-xl font-mono-tech text-[11px] overflow-x-auto max-h-64 leading-relaxed"># Script tự động đọc khung chat Zalo Desktop đang mở trên Windows
+# Cài đặt 1 lần: pip install uiautomation
+import uiautomation as auto
+import time, datetime
+
+zalo_win = auto.WindowControl(searchDepth=1, RegexName="Zalo.*")
+if not zalo_win.Exists(3):
+    print("Không tìm thấy cửa sổ Zalo Desktop!")
+    exit()
+
+zalo_win.SetActive()
+lines = []
+print("Đang quét tin nhắn... Bấm Ctrl+C để dừng và lưu file.")
+for _ in range(15):  # Số lần cuộn lên lịch sử cũ (tăng lên nếu cần nhiều ngày)
+    for ctrl, _ in auto.WalkControl(zalo_win, maxDepth=12):
+        if ctrl.ControlTypeName == "TextControl" and len(ctrl.Name.strip()) > 3:
+            txt = ctrl.Name.strip()
+            if txt not in lines:
+                lines.append(txt)
+    zalo_win.WheelUp(wheelTimes=8)
+    time.sleep(0.6)
+
+fname = f"Zalo_Export_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.txt"
+with open(fname, "w", encoding="utf-8") as f:
+    f.write("\n".join(reversed(lines)))
+print(f"Đã xuất {len(lines)} dòng ra file: {fname}")</pre>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button class="modal-close px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-semibold">Đã hiểu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODULAR APPLICATION LOGIC (FIREBASE + PARSER + DEDUPE + AI + UI)      -->
+  <!-- ===================================================================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    /**
+     * =========================================================================
+     * MODULE 1: SECURITY MODULE (Password Hashing & Tab Lock Session State)
+     * =========================================================================
+     */
+    const SecurityModule = {
+      unlockedTabIds: new Set(),
+
+      async hashPassword(plainText) {
+        if (!plainText) return "";
+        const encoder = new TextEncoder();
+        const data = encoder.encode("ZaloShiftSalt_" + plainText.trim());
+        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+        return Array.from(new Uint8Array(hashBuffer))
+          .map(b => b.toString(16).padStart(2, "0"))
+          .join("");
+      },
+
+      isTabLocked(tab) {
+        if (!tab || !tab.passwordHash) return false;
+        return !this.unlockedTabIds.has(tab.id);
+      },
+
+      async verifyAndUnlock(tab, inputPassword) {
+        const inputHash = await this.hashPassword(inputPassword);
+        if (inputHash === tab.passwordHash) {
+          this.unlockedTabIds.add(tab.id);
+          return true;
+        }
+        return false;
+      },
+
+      lockTab(tabId) {
+        this.unlockedTabIds.delete(tabId);
+      }
+    };
+
+    /**
+     * =========================================================================
+     * MODULE 2: PARSER MODULE (Zalo Copy-Paste & Export File Analyzer)
+     * =========================================================================
+     */
+    const ParserModule = {
+      // Auto-extract technical plant / C&I keywords from Vietnamese shift reports
+      extractKeywords(text) {
+        const keywords = new Set();
+        // Equipment codes like BFPT-1A, BFpT 2A, PCV-1A, LPBP, MFT, IPLs, CEMS, hotwell, BNA, BCP, TDN A
+        const techRegex = /\b([A-Z]{2,6}[- ]?\d*[A-Z0-9]*|hotwell|bonnet|Plug|HOLD|NOT HOLD|logic|graphic|warming speed|load reject|Sio2|Cc|cào rác|reset|đốt dầu)\b/gi;
+        let match;
+        while ((match = techRegex.exec(text)) !== null) {
+          const token = match[0].trim();
+          if (token.length >= 2 && !["Báo", "cáo", "hiện", "tại", "sau", "khi", "vào", "trong", "phần", "ngày", "mai", "với", "cho", "các"].includes(token)) {
+            keywords.add(token);
+          }
+        }
+        // Report category tags: TC, TK, MT, TKLM
+        const reportTagMatch = text.match(/Báo cáo\s+([A-Z,\s]+):/i);
+        if (reportTagMatch) {
+          keywords.add("BC: " + reportTagMatch[1].replace(/\s+/g, ""));
+        }
+        return Array.from(keywords).slice(0, 6);
+      },
+
+      // Normalize date/time string into ISO-like sortable format YYYY-MM-DDTHH:mm
+      normalizeTimestamp(rawTimeStr, fallbackDateISO) {
+        const baseDate = fallbackDateISO || new Date().toISOString().slice(0, 10);
+        if (!rawTimeStr) return `${baseDate}T08:00`;
+
+        // Match DD/MM/YYYY HH:mm or HH:mm DD/MM/YYYY
+        const fullMatch1 = rawTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+        if (fullMatch1) {
+          const [_, d, m, y, hh, mm] = fullMatch1;
+          return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T${hh.padStart(2, '0')}:${mm}`;
+        }
+        const fullMatch2 = rawTimeStr.match(/(\d{1,2}):(\d{2})\s+(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (fullMatch2) {
+          const [_, hh, mm, d, m, y] = fullMatch2;
+          return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T${hh.padStart(2, '0')}:${mm}`;
+        }
+        // Match HH:mm or 2h02 / 0h28 inside message text
+        const timeOnly = rawTimeStr.match(/(\d{1,2})[:h](\d{2})/);
+        if (timeOnly) {
+          const [_, hh, mm] = timeOnly;
+          if (parseInt(hh) <= 23 && parseInt(mm) <= 59) {
+            return `${baseDate}T${hh.padStart(2, '0')}:${mm}`;
+          }
+        }
+        return `${baseDate}T08:00`;
+      },
+
+      // Parse raw text (supports JSON exports, bracketed Zalo logs, and plain shift report lines)
+      parseRawInput(rawText, defaultGroup = "PXVH. GROUP TRỰC CA", defaultDateISO = null) {
+        const trimmed = rawText.trim();
+        if (!trimmed) return [];
+
+        // 1. Try JSON format first
+        if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            const arr = Array.isArray(parsed) ? parsed : (parsed.messages || []);
+            return arr.map(item => {
+              const content = String(item.content || item.text || item.message || "").trim();
+              const group = String(item.group || item.chatName || defaultGroup).trim();
+              const sender = String(item.sender || item.author || "Thành viên nhóm").trim();
+              const ts = this.normalizeTimestamp(String(item.timestamp || item.time || ""), defaultDateISO);
+              return {
+                timestamp: ts,
+                group,
+                sender,
+                content,
+                keywords: this.extractKeywords(content)
+              };
+            }).filter(m => m.content);
+          } catch (e) {
+            // Fall through to text parser
+          }
+        }
+
+        // 2. Line-by-line & Multi-line Zalo Text Parser
+        const lines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const results = [];
+        let currentGroup = defaultGroup;
+        let currentDate = defaultDateISO || new Date().toISOString().slice(0, 10);
+        let currentSender = "Thành viên ca trực";
+        let currentTime = "08:00";
+
+        // Regex patterns for Zalo formats
+        const bracketHeaderRegex = /^\[?(\d{1,2}:\d{2}(?:\s+\d{1,2}\/\d{1,2}\/\d{4})?|\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2})\]?\s*([^:]+):\s*(.*)$/;
+        const standaloneTimeRegex = /^(\d{1,2}:\d{2})(?:\s+(\d{1,2}\/\d{1,2}\/\d{4}))?$/;
+        const groupHeaderRegex = /^(?:===|---)\s*Nhóm:\s*(.+?)\s*(?:===|---)$/i;
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+
+          // Group marker in exported text
+          const gMatch = line.match(groupHeaderRegex);
+          if (gMatch) {
+            currentGroup = gMatch[1].trim();
+            continue;
+          }
+
+          // Standalone timestamp line (common in Zalo copy-paste)
+          const tMatch = line.match(standaloneTimeRegex);
+          if (tMatch) {
+            currentTime = tMatch[1];
+            if (tMatch[2]) {
+              const [d, m, y] = tMatch[2].split("/");
+              currentDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            }
+            continue;
+          }
+
+          // Bracketed format: [08:32 24/11/2026] Trần Đình Hợi: nội dung...
+          const bMatch = line.match(bracketHeaderRegex);
+          if (bMatch && !line.startsWith("Báo cáo")) {
+            const ts = this.normalizeTimestamp(bMatch[1], currentDate);
+            const sender = bMatch[2].trim();
+            const content = bMatch[3].trim();
+            if (content) {
+              results.push({
+                timestamp: ts,
+                group: currentGroup,
+                sender,
+                content,
+                keywords: this.extractKeywords(content)
+              });
+            }
+            continue;
+          }
+
+          // Shift report format from user sample:
+          // "Báo cáo TC,TK,MT @Nguyễn Vinh NĐQT1 : hiện tại nt đã đóng các van tay..."
+          // or "Báo cáo TC, TK, MT: sau khi lắp đặt xong..."
+          let detectedSender = currentSender;
+          const mentionSenderMatch = line.match(/@([A-Za-zÀ-ỹ0-9\s()._-]+?)\s*:/);
+          if (mentionSenderMatch) {
+            detectedSender = mentionSenderMatch[1].trim();
+          }
+
+          // Check inline time like "2h02:" or "0h28:"
+          const inlineTimeMatch = line.match(/\b(\d{1,2})h(\d{2})\b/);
+          const msgTime = inlineTimeMatch
+            ? `${currentDate}T${inlineTimeMatch[1].padStart(2, '0')}:${inlineTimeMatch[2]}`
+            : `${currentDate}T${currentTime}`;
+
+          // Detect if this line is likely just a sender name before a message bubble
+          if (line.length < 40 && !line.includes(":") && !line.startsWith("Báo cáo") && i + 1 < lines.length && lines[i + 1].length > 15) {
+            currentSender = line;
+            continue;
+          }
+
+          results.push({
+            timestamp: msgTime,
+            group: currentGroup,
+            sender: detectedSender,
+            content: line,
+            keywords: this.extractKeywords(line)
+          });
+        }
+
+        return results;
+      }
+    };
+
+    /**
+     * =========================================================================
+     * MODULE 3: DEDUPE & CLOUD STORAGE MODULE (Firebase Firestore + Memory)
+     * =========================================================================
+     */
+    const DedupeStorageModule = {
+      db: null,
+      auth: null,
+      appId: typeof __app_id !== 'undefined' ? __app_id : 'zaloshift-ai-default',
+      user: null,
+      state: {
+        tabs: [],
+        activeTabId: null
+      },
+      onStateChangeCallback: null,
+
+      // Create unique fingerprint to eliminate duplicate imports
+      buildFingerprint(msg) {
+        const cleanContent = msg.content.toLowerCase().replace(/\s+/g, " ").slice(0, 60);
+        return `${msg.group.toLowerCase()}|${msg.timestamp}|${msg.sender.toLowerCase()}|${cleanContent}`;
+      },
+
+      mergeDeduplicated(existingMessages, incomingMessages) {
+        const seen = new Set(existingMessages.map(m => m.id || this.buildFingerprint(m)));
+        let addedCount = 0;
+        let duplicateCount = 0;
+        const merged = [...existingMessages];
+
+        for (const msg of incomingMessages) {
+          const fp = this.buildFingerprint(msg);
+          if (seen.has(fp)) {
+            duplicateCount++;
+          } else {
+            seen.add(fp);
+            merged.push({ ...msg, id: fp });
+            addedCount++;
+          }
+        }
+
+        // Sort chronologically ascending
+        merged.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+        return { merged, addedCount, duplicateCount };
+      },
+
+      getDefaultDemoTab() {
+        const sampleMessages = [
+          {
+            timestamp: "2026-11-23T07:23",
+            group: "Unit 1 Theo dõi khởi động",
+            sender: "Nguyễn Vinh NĐQT1",
+            content: "Xung động BFPT-1A đến warming speed. Kèm bảng quy định chất lượng hơi dẫn động BFPT (độ dẫn cation <= 0,15-0,2 uS/cm, Na <= 2, SiO2 <= 10, Fe <= 5 ug/kg).",
+            keywords: ["BFPT-1A", "warming speed", "SiO2"]
+          },
+          {
+            timestamp: "2026-11-23T23:01",
+            group: "CI - Nhóm Trực Ca",
+            sender: "Đặng Đình Dương NĐQT1",
+            content: "[Hình ảnh] Màn hình giám sát UNIT #1 ROTOR STRESS trên DCS.",
+            keywords: ["DCS", "ROTOR STRESS"]
+          },
+          {
+            timestamp: "2026-11-24T00:28",
+            group: "PXVH. GROUP TRỰC CA",
+            sender: "Nguyễn Sỹ Phúc (NĐQT1)",
+            content: "Báo cáo TC, TK: 0h28: NT mở van cấp nước qua lò.",
+            keywords: ["BC: TC,TK", "cấp nước qua lò"]
+          },
+          {
+            timestamp: "2026-11-24T01:37",
+            group: "PXVH. GROUP TRỰC CA",
+            sender: "Nguyễn Sỹ Phúc (NĐQT1)",
+            content: "[Hình ảnh] Báo cáo TC, TK: 1h37 NT khởi động HT khói gió theo SEQ, 2h02: NT reset MFT, 2h30 NT đốt dầu theo mạch IPLs.",
+            keywords: ["BC: TC,TK", "SEQ", "reset MFT", "IPLs"]
+          },
+          {
+            timestamp: "2026-11-24T02:04",
+            group: "PXVH. GROUP TRỰC CA",
+            sender: "Đào Ngọc Văn (93.TTH.Clo-K.A)",
+            content: "Báo cáo tC,TK,MT Hiện tại bơm lớn đã chĩa thân, chắc còn khoảng 80cm nước nữa ở cửa chặn.",
+            keywords: ["BC: tC,TK,MT", "bơm lớn"]
+          },
+          {
+            timestamp: "2026-11-24T02:15",
+            group: "PXVH. GROUP TRỰC CA",
+            sender: "Lê Hữu Thắng NĐQT1",
+            content: "Chất lượng nước trước khi đốt lò Sio2, Cc chưa đạt.",
+            keywords: ["Sio2", "Cc"]
+          },
+          {
+            timestamp: "2026-11-24T08:32",
+            group: "CI - Nhóm Trực Ca",
+            sender: "Trần Đình Hợi C.I NĐQT1",
+            content: "@Đặng Đình Dương NĐQT1 chỗ link này sáng nay a có trao đổi với nhà thầu rồi hắn có cái logic viết để hiển thị HOLD/ NOT HOLD trong graphic nữa nên khi em nhấn vào đó để mở logic hắn sẽ không ra được.",
+            keywords: ["HOLD", "NOT HOLD", "graphic", "logic"]
+          },
+          {
+            timestamp: "2026-11-24T10:15",
+            group: "PXVH. GROUP TRỰC CA",
+            sender: "Nguyễn Vinh NĐQT1",
+            content: "Báo cáo TC,TK,MT @Nguyễn Vinh NĐQT1 : hiện tại nt đã đóng các van tay xả nước làm mát kín ở BFpT 2A,2B, bộ TDN A, van xả đáy hotwell BNA.",
+            keywords: ["BC: TC,TK,MT", "BFpT 2A", "TDN A", "hotwell BNA"]
+          },
+          {
+            timestamp: "2026-11-24T11:40",
+            group: "PXVH. GROUP TRỰC CA",
+            sender: "Trực Ca Vận Hành",
+            content: "Báo cáo TC, TK, MT: sau khi lắp đặt xong phần bonnet và Plug vào trong thân van PCV-1A LPBP nhà thầu đã dừng công tác . Ngày mai sẽ tiếp tục lắp đặt phần điều khiển van.",
+            keywords: ["BC: TC,TK,MT", "bonnet", "Plug", "PCV-1A", "LPBP"]
+          },
+          {
+            timestamp: "2026-11-24T14:20",
+            group: "PXVH. GROUP TRỰC CA",
+            sender: "Trực Ca Kênh Tuần Hoàn",
+            content: "Báo cáo TC,TKLM,MT: HV chạy cào rác kênh 1A, 1B, lượng rác cào lên ít.",
+            keywords: ["BC: TC,TKLM,MT", "cào rác"]
+          }
+        ].map(m => ({ ...m, id: this.buildFingerprint(m) }));
+
+        return {
+          id: "tab-demo-qt1",
+          name: "Demo - Trực Ca QT1",
+          passwordHash: "",
+          messages: sampleMessages
+        };
+      },
+
+      async init(onUpdate) {
+        this.onStateChangeCallback = onUpdate;
+        try {
+          if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = initializeApp(firebaseConfig);
+            this.auth = getAuth(app);
+            this.db = getFirestore(app);
+
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+              await signInWithCustomToken(this.auth, __initial_auth_token);
+            } else {
+              await signInAnonymously(this.auth);
+            }
+            this.user = this.auth.currentUser;
+            this.subscribeSharedWorkspace();
+            return;
+          }
+        } catch (err) {
+          console.warn("Running in standalone memory mode:", err);
+        }
+
+        // Fallback if Firebase config is absent
+        this.state.tabs = [this.getDefaultDemoTab()];
+        this.state.activeTabId = this.state.tabs[0].id;
+        this.notify();
+      },
+
+      subscribeSharedWorkspace() {
+        if (!this.db || !this.user) return;
+        // Strict Rule 1 Path: /artifacts/{appId}/public/data/workspace_tabs
+        const tabsColRef = collection(this.db, 'artifacts', this.appId, 'public', 'data', 'workspace_tabs');
+
+        onSnapshot(tabsColRef, async (snapshot) => {
+          if (snapshot.empty) {
+            const demoTab = this.getDefaultDemoTab();
+            await this.saveTab(demoTab);
+            return;
+          }
+          const loadedTabs = [];
+          snapshot.forEach(docSnap => {
+            loadedTabs.push(docSnap.data());
+          });
+          // Sort tabs consistently
+          loadedTabs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          this.state.tabs = loadedTabs;
+
+          if (!this.state.activeTabId || !loadedTabs.some(t => t.id === this.state.activeTabId)) {
+            this.state.activeTabId = loadedTabs[0].id;
+          }
+          this.notify();
+        }, (error) => {
+          console.error("Firestore sync error:", error);
+        });
+      },
+
+      async saveTab(tabObj) {
+        const idx = this.state.tabs.findIndex(t => t.id === tabObj.id);
+        if (idx >= 0) {
+          this.state.tabs[idx] = tabObj;
+        } else {
+          this.state.tabs.push(tabObj);
+        }
+        this.notify();
+
+        if (this.db && this.user) {
+          const docRef = doc(this.db, 'artifacts', this.appId, 'public', 'data', 'workspace_tabs', tabObj.id);
+          await setDoc(docRef, {
+            ...tabObj,
+            createdAt: tabObj.createdAt || Date.now()
+          });
+        }
+      },
+
+      getActiveTab() {
+        return this.state.tabs.find(t => t.id === this.state.activeTabId) || this.state.tabs[0];
+      },
+
+      setActiveTab(tabId) {
+        this.state.activeTabId = tabId;
+        this.notify();
+      },
+
+      notify() {
+        if (this.onStateChangeCallback) this.onStateChangeCallback(this.state);
+      }
+    };
+
+    /**
+     * =========================================================================
+     * MODULE 4: AI SERVICE MODULE (Gemini 3 Flash Shift Summary & Traceability)
+     * =========================================================================
+     */
+    const AIServiceModule = {
+      apiKey: "", // Automatically injected at runtime
+      model: "gemini-3-flash-preview",
+
+      async callGeminiWithBackoff(payload) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+        let delay = 1000;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          try {
+            const res = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+              return await res.json();
+            }
+          } catch (e) {
+            // Retry silently on transient network error
+          }
+          await new Promise(r => setTimeout(r, delay));
+          delay *= 2;
+        }
+        throw new Error("Không thể kết nối máy chủ AI lúc này. Vui lòng thử lại sau giây lát.");
+      },
+
+      formatMessagesContext(messages) {
+        // Limit to latest 150 filtered messages to keep prompt fast and focused
+        const slice = messages.slice(-150);
+        return slice.map((m, idx) =>
+          `[#${idx + 1} | ${m.timestamp.replace('T', ' ')} | Nhóm: ${m.group} | Người gửi: ${m.sender}]: ${m.content}`
+        ).join("\n");
+      },
+
+      async generateShiftSummary(messages) {
+        if (!messages.length) return "Không có tin nhắn nào trong bộ lọc hiện tại để tóm tắt.";
+        const context = this.formatMessagesContext(messages);
+
+        const systemPrompt = `Bạn là Kỹ sư Trực ca & Tự động hóa (C&I / Vận hành nhà máy nhiệt điện). Hãy đọc danh sách tin nhắn Zalo sau những ngày nghỉ ca và tóm tắt thật súc tích, chính xác bằng tiếng Việt theo 3 nhóm rõ ràng:
+1. **Vận hành & Thử nghiệm thiết bị** (ghi rõ tên thiết bị, thông số, mốc giờ).
+2. **Công tác Bảo dưỡng / Nhà thầu / Logic C&I** (ghi rõ hạng mục đã xong, hạng mục dừng hoặc chờ).
+3. **Bất thường & Lưu ý bàn giao cho ca sau** (những thông số chưa đạt, cảnh báo cần theo dõi).
+Dùng gạch đầu dòng ngắn gọn, bôi đậm tên thiết bị/từ khóa quan trọng. Không bịa thêm thông tin ngoài dữ liệu.`;
+
+        const payload = {
+          contents: [{ parts: [{ text: `Dữ liệu tin nhắn Zalo cần tóm tắt:\n\n${context}` }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] }
+        };
+
+        const data = await this.callGeminiWithBackoff(payload);
+        return data?.candidates?.[0]?.content?.parts?.[0]?.text || "Không nhận được phản hồi tóm tắt.";
+      },
+
+      async askAndTrace(question, messages) {
+        if (!messages.length) {
+          return {
+            answer: "Danh sách tin nhắn đang trống. Bạn hãy nạp dữ liệu hoặc nới rộng bộ lọc thời gian trước nhé.",
+            traces: []
+          };
+        }
+        const context = this.formatMessagesContext(messages);
+
+        const systemPrompt = `Bạn là Trợ lý Truy vết Tin nhắn Zalo trực ca. Người dùng sẽ hỏi về một sự việc, thiết bị hoặc đoạn hội thoại trong quá khứ.
+Nhiệm vụ của bạn:
+1. Trả lời ngắn gọn, đúng trọng tâm nội dung hội thoại nhắc gì.
+2. Trích xuất danh sách các tin nhắn gốc liên quan nhất (tối đa 4 tin) gồm:
+   - sender: Tên người gửi chính xác như trong dữ liệu
+   - timestamp: Thời gian chính xác (YYYY-MM-DD HH:mm)
+   - searchKeyword: Một cụm từ khóa ngắn (2-5 từ) trích nguyên văn từ nội dung tin nhắn đó để người dùng copy dán vào thanh tìm kiếm của Zalo là nhảy thẳng tới tin nhắn gốc.
+   - snippet: Tóm tắt 1 câu nội dung tin nhắn đó.`;
+
+        const payload = {
+          contents: [{
+            parts: [{
+              text: `Câu hỏi của người trực ca: "${question}"\n\nDanh sách tin nhắn Zalo đã lọc:\n${context}`
+            }]
+          }],
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                answer: { type: "STRING" },
+                traces: {
+                  type: "ARRAY",
+                  items: {
+                    type: "OBJECT",
+                    properties: {
+                      sender: { type: "STRING" },
+                      timestamp: { type: "STRING" },
+                      searchKeyword: { type: "STRING" },
+                      snippet: { type: "STRING" }
+                    },
+                    required: ["sender", "timestamp", "searchKeyword", "snippet"]
+                  }
+                }
+              },
+              required: ["answer", "traces"]
+            }
+          }
+        };
+
+        const data = await this.callGeminiWithBackoff(payload);
+        const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        return JSON.parse(rawJson);
+      }
+    };
+
+    /**
+     * =========================================================================
+     * MODULE 5: UI CONTROLLER MODULE (Ribbon, Grid, Modals, Sheet Tabs)
+     * =========================================================================
+     */
+    const UIController = {
+      isCompactRows: false,
+      isRibbonCollapsed: false,
+      pendingParsedFileMessages: [],
+      promptCallback: null,
+
+      init() {
+        this.bindRibbonEvents();
+        this.bindFilterEvents();
+        this.bindImportAndPasteEvents();
+        this.bindAIEvents();
+        this.bindSecurityAndTabEvents();
+
+        // Set default date in paste modal to today
+        document.getElementById("paste-default-date").value = new Date().toISOString().slice(0, 10);
+
+        // Start storage engine
+        DedupeStorageModule.init(() => this.renderAll());
+      },
+
+      showToast(message, type = "info") {
+        const container = document.getElementById("toast-container");
+        const colors = {
+          info: "bg-slate-800 text-white",
+          success: "bg-emerald-600 text-white",
+          warning: "bg-amber-600 text-white",
+          error: "bg-rose-600 text-white"
+        };
+        const toast = document.createElement("div");
+        toast.className = `${colors[type] || colors.info} px-4 py-2.5 rounded-xl shadow-lg text-xs font-medium flex items-center gap-2 transition-all duration-300 transform translate-y-0 opacity-100`;
+        toast.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          setTimeout(() => toast.remove(), 300);
+        }, 3200);
+      },
+
+      copyToClipboard(text, label = "từ khóa") {
+        const temp = document.createElement("textarea");
+        temp.value = text;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        document.body.removeChild(temp);
+        this.showToast(`Đã sao chép ${label}: "${text}"`, "success");
+      },
+
+      bindRibbonEvents() {
+        // Switch ribbon tabs (File, Data, AI Tools, Security, View)
+        document.querySelectorAll(".ribbon-tab-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const target = btn.dataset.ribbon;
+            // Expand ribbon if collapsed
+            if (this.isRibbonCollapsed) this.toggleRibbon(false);
+
+            document.querySelectorAll(".ribbon-tab-btn").forEach(b => {
+              b.classList.remove("bg-sky-600", "text-white", "shadow-sm");
+              b.classList.add("text-slate-700", "hover:bg-white/70");
+            });
+            btn.classList.add("bg-sky-600", "text-white", "shadow-sm");
+            btn.classList.remove("text-slate-700", "hover:bg-white/70");
+
+            document.querySelectorAll(".ribbon-panel").forEach(p => p.classList.add("hidden"));
+            document.getElementById(`ribbon-panel-${target}`).classList.remove("hidden");
+          });
+        });
+
+        // Collapse / Expand Ribbon button
+        document.getElementById("btn-toggle-ribbon").addEventListener("click", () => {
+          this.toggleRibbon(!this.isRibbonCollapsed);
+        });
+
+        // Share Link button
+        document.getElementById("btn-share-link").addEventListener("click", () => {
+          this.copyToClipboard(window.location.href, "link chia sẻ ứng dụng");
+        });
+
+        // View options
+        document.getElementById("btn-toggle-density").addEventListener("click", () => {
+          this.isCompactRows = !this.isCompactRows;
+          document.getElementById("density-label").textContent =
+            this.isCompactRows ? "Chế độ dòng: Thu gọn (Compact)" : "Chế độ dòng: Tiêu chuẩn";
+          this.renderGrid();
+        });
+
+        document.getElementById("btn-toggle-ai-pane").addEventListener("click", () => {
+          document.getElementById("ai-pane").classList.toggle("hidden");
+        });
+      },
+
+      toggleRibbon(collapse) {
+        this.isRibbonCollapsed = collapse;
+        const body = document.getElementById("ribbon-body");
+        const icon = document.getElementById("ribbon-chevron");
+        if (collapse) {
+          body.classList.add("hidden");
+          icon.className = "fa-solid fa-chevron-down text-xs";
+        } else {
+          body.classList.remove("hidden");
+          icon.className = "fa-solid fa-chevron-up text-xs";
+        }
+      },
+
+      bindFilterEvents() {
+        const triggerRender = () => this.renderGrid();
+
+        document.getElementById("filter-group").addEventListener("change", triggerRender);
+        document.getElementById("filter-date-from").addEventListener("change", triggerRender);
+        document.getElementById("filter-date-to").addEventListener("change", triggerRender);
+
+        // Sync top formula search bar and Data ribbon search box
+        const ribbonSearch = document.getElementById("filter-keyword");
+        const formulaSearch = document.getElementById("quick-formula-search");
+
+        ribbonSearch.addEventListener("input", (e) => {
+          formulaSearch.value = e.target.value;
+          triggerRender();
+        });
+        formulaSearch.addEventListener("input", (e) => {
+          ribbonSearch.value = e.target.value;
+          triggerRender();
+        });
+
+        document.getElementById("btn-reset-filters").addEventListener("click", () => {
+          document.getElementById("filter-group").value = "ALL";
+          document.getElementById("filter-date-from").value = "";
+          document.getElementById("filter-date-to").value = "";
+          ribbonSearch.value = "";
+          formulaSearch.value = "";
+          triggerRender();
+        });
+
+        document.getElementById("btn-clear-tab-data").addEventListener("click", async () => {
+          const tab = DedupeStorageModule.getActiveTab();
+          if (!tab) return;
+          tab.messages = [];
+          await DedupeStorageModule.saveTab(tab);
+          this.showToast(`Đã xóa toàn bộ tin nhắn trong tab "${tab.name}"`, "warning");
+        });
+      },
+
+      getFilteredMessages() {
+        const tab = DedupeStorageModule.getActiveTab();
+        if (!tab || SecurityModule.isTabLocked(tab)) return [];
+
+        const groupVal = document.getElementById("filter-group").value;
+        const fromVal = document.getElementById("filter-date-from").value;
+        const toVal = document.getElementById("filter-date-to").value;
+        const kwVal = document.getElementById("quick-formula-search").value.trim().toLowerCase();
+
+        return (tab.messages || []).filter(msg => {
+          if (groupVal !== "ALL" && msg.group !== groupVal) return false;
+          if (fromVal && msg.timestamp < fromVal) return false;
+          if (toVal && msg.timestamp > toVal) return false;
+          if (kwVal) {
+            const hay = `${msg.sender} ${msg.content} ${msg.group} ${(msg.keywords || []).join(" ")}`.toLowerCase();
+            if (!hay.includes(kwVal)) return false;
+          }
+          return true;
+        });
+      },
+
+      bindImportAndPasteEvents() {
+        // Close modals
+        document.querySelectorAll(".modal-close").forEach(btn => {
+          btn.addEventListener("click", () => {
+            btn.closest(".fixed").classList.add("hidden");
+          });
+        });
+
+        // Export CSV
+        document.getElementById("btn-export-csv").addEventListener("click", () => {
+          const rows = this.getFilteredMessages();
+          if (!rows.length) {
+            this.showToast("Không có dữ liệu để xuất CSV", "warning");
+            return;
+          }
+          const csvHeader = "\uFEFFThời gian,Nhóm,Người gửi,Nội dung,Từ khóa\n";
+          const csvBody = rows.map(r =>
+            `"${r.timestamp.replace('T', ' ')}","${r.group.replace(/"/g, '""')}","${r.sender.replace(/"/g, '""')}","${r.content.replace(/"/g, '""')}","${(r.keywords || []).join('; ')}"`
+          ).join("\n");
+          const blob = new Blob([csvHeader + csvBody], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `ZaloShift_Export_${new Date().toISOString().slice(0, 10)}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+
+        // Python Collector Helper Modal
+        document.getElementById("btn-python-helper").addEventListener("click", () => {
+          document.getElementById("modal-python-helper").classList.remove("hidden");
+        });
+        document.getElementById("btn-copy-python-code").addEventListener("click", () => {
+          const code = document.getElementById("python-script-code").textContent;
+          this.copyToClipboard(code, "mã Python hút tin Zalo PC");
+        });
+
+        // Open Paste Modal
+        document.getElementById("btn-open-paste-modal").addEventListener("click", () => {
+          document.getElementById("modal-paste-zalo").classList.remove("hidden");
+        });
+
+        document.getElementById("btn-confirm-paste").addEventListener("click", async () => {
+          const raw = document.getElementById("paste-raw-textarea").value;
+          const group = document.getElementById("paste-group-name").value.trim() || "PXVH. GROUP TRỰC CA";
+          const defDate = document.getElementById("paste-default-date").value;
+
+          const parsed = ParserModule.parseRawInput(raw, group, defDate);
+          if (!parsed.length) {
+            this.showToast("Không tìm thấy nội dung tin nhắn hợp lệ", "warning");
+            return;
+          }
+
+          const tab = DedupeStorageModule.getActiveTab();
+          const { merged, addedCount, duplicateCount } = DedupeStorageModule.mergeDeduplicated(tab.messages || [], parsed);
+          tab.messages = merged;
+          await DedupeStorageModule.saveTab(tab);
+
+          document.getElementById("paste-raw-textarea").value = "";
+          document.getElementById("modal-paste-zalo").classList.add("hidden");
+          this.showToast(`Đã thêm ${addedCount} tin mới (Bỏ qua ${duplicateCount} tin trùng)`, "success");
+        });
+
+        // Open File Import Modal with Pre-Filter
+        document.getElementById("btn-open-file-modal").addEventListener("click", () => {
+          document.getElementById("file-import-input").value = "";
+          document.getElementById("file-prefilter-box").classList.add("hidden");
+          document.getElementById("btn-confirm-file-import").disabled = true;
+          document.getElementById("modal-file-import").classList.remove("hidden");
+        });
+
+        document.getElementById("file-import-input").addEventListener("change", (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const content = ev.target.result;
+            const defaultGroup = file.name.replace(/\.[^/.]+$/, "");
+            const parsed = ParserModule.parseRawInput(content, defaultGroup);
+            this.pendingParsedFileMessages = parsed;
+
+            const groups = Array.from(new Set(parsed.map(m => m.group)));
+            const groupSelect = document.getElementById("import-group-select");
+            groupSelect.innerHTML = `<option value="ALL">Tất cả nhóm (${groups.length} nhóm)</option>` +
+              groups.map(g => `<option value="${g}">${g}</option>`).join("");
+
+            // Auto-detect min/max dates in file
+            if (parsed.length) {
+              const sorted = [...parsed].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+              document.getElementById("import-date-from").value = sorted[0].timestamp;
+              document.getElementById("import-date-to").value = sorted[sorted.length - 1].timestamp;
+            }
+
+            document.getElementById("file-scan-summary").textContent = `Quét được ${parsed.length} tin nhắn`;
+            document.getElementById("file-prefilter-box").classList.remove("hidden");
+            document.getElementById("btn-confirm-file-import").disabled = parsed.length === 0;
+          };
+          reader.readAsText(file, "UTF-8");
+        });
+
+        document.getElementById("btn-confirm-file-import").addEventListener("click", async () => {
+          const selGroup = document.getElementById("import-group-select").value;
+          const fromDt = document.getElementById("import-date-from").value;
+          const toDt = document.getElementById("import-date-to").value;
+
+          const sliced = this.pendingParsedFileMessages.filter(m => {
+            if (selGroup !== "ALL" && m.group !== selGroup) return false;
+            if (fromDt && m.timestamp < fromDt) return false;
+            if (toDt && m.timestamp > toDt) return false;
+            return true;
+          });
+
+          const tab = DedupeStorageModule.getActiveTab();
+          const { merged, addedCount, duplicateCount } = DedupeStorageModule.mergeDeduplicated(tab.messages || [], sliced);
+          tab.messages = merged;
+          await DedupeStorageModule.saveTab(tab);
+
+          document.getElementById("modal-file-import").classList.add("hidden");
+          this.showToast(`Đã cắt & nạp ${addedCount} tin mới (Lọc bỏ ${duplicateCount} tin trùng)`, "success");
+        });
+      },
+
+      bindAIEvents() {
+        const switchSubTab = (mode) => {
+          const btnSum = document.getElementById("subtab-btn-summary");
+          const btnQa = document.getElementById("subtab-btn-qa");
+          const panSum = document.getElementById("ai-panel-summary");
+          const panQa = document.getElementById("ai-panel-qa");
+
+          if (mode === "summary") {
+            btnSum.className = "flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-white text-sky-700 shadow-sm transition flex items-center justify-center gap-1.5";
+            btnQa.className = "flex-1 py-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5";
+            panSum.classList.remove("hidden");
+            panQa.classList.add("hidden");
+          } else {
+            btnQa.className = "flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-white text-sky-700 shadow-sm transition flex items-center justify-center gap-1.5";
+            btnSum.className = "flex-1 py-1.5 px-2.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5";
+            panQa.classList.remove("hidden");
+            panSum.classList.add("hidden");
+          }
+        };
+
+        document.getElementById("subtab-btn-summary").addEventListener("click", () => switchSubTab("summary"));
+        document.getElementById("subtab-btn-qa").addEventListener("click", () => switchSubTab("qa"));
+        document.getElementById("btn-ai-focus-qa").addEventListener("click", () => {
+          document.getElementById("ai-pane").classList.remove("hidden");
+          switchSubTab("qa");
+          document.getElementById("qa-input").focus();
+        });
+
+        const runSummary = async () => {
+          document.getElementById("ai-pane").classList.remove("hidden");
+          switchSubTab("summary");
+          const msgs = this.getFilteredMessages();
+          const out = document.getElementById("summary-output");
+          out.innerHTML = `<div class="flex items-center justify-center py-10 gap-2 text-sky-700 font-medium"><i class="fa-solid fa-spinner fa-spin"></i><span>AI đang rà soát & tổng hợp ${msgs.length} tin nhắn trực ca...</span></div>`;
+
+          try {
+            const markdownText = await AIServiceModule.generateShiftSummary(msgs);
+            // Format simple markdown bold & bullets cleanly
+            const formattedHtml = markdownText
+              .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-900">$1</strong>')
+              .replace(/\n/g, '<br>');
+            out.innerHTML = `<div class="space-y-2">${formattedHtml}</div>`;
+          } catch (err) {
+            out.innerHTML = `<div class="text-rose-600 p-3 bg-rose-50 rounded-lg">${err.message}</div>`;
+          }
+        };
+
+        document.getElementById("btn-run-summary").addEventListener("click", runSummary);
+        document.getElementById("btn-ai-summarize-ribbon").addEventListener("click", runSummary);
+
+        // Suggested Q&A buttons
+        document.querySelectorAll(".qa-suggestion").forEach(btn => {
+          btn.addEventListener("click", () => {
+            document.getElementById("qa-input").value = btn.textContent.trim();
+            document.getElementById("qa-form").dispatchEvent(new Event("submit"));
+          });
+        });
+
+        // Q&A Form Submission
+        document.getElementById("qa-form").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const inputEl = document.getElementById("qa-input");
+          const question = inputEl.value.trim();
+          if (!question) return;
+          inputEl.value = "";
+
+          const feed = document.getElementById("qa-chat-feed");
+          const userBubble = document.createElement("div");
+          userBubble.className = "bg-sky-600 text-white rounded-xl p-2.5 ml-8 shadow-sm";
+          userBubble.textContent = question;
+          feed.appendChild(userBubble);
+
+          const loadingBubble = document.createElement("div");
+          loadingBubble.className = "bg-white/75 border border-white rounded-xl p-3 mr-4 text-slate-600 flex items-center gap-2";
+          loadingBubble.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-sky-600"></i><span>Đang truy vết hội thoại & trích xuất từ khóa Zalo...</span>`;
+          feed.appendChild(loadingBubble);
+          feed.scrollTop = feed.scrollHeight;
+
+          try {
+            const msgs = this.getFilteredMessages();
+            const result = await AIServiceModule.askAndTrace(question, msgs);
+            loadingBubble.remove();
+
+            const aiCard = document.createElement("div");
+            aiCard.className = "bg-white/85 border border-white rounded-xl p-3 mr-2 shadow-sm space-y-2.5";
+
+            let tracesHtml = "";
+            if (result.traces && result.traces.length) {
+              tracesHtml = `<div class="pt-2 border-t border-slate-200/70 space-y-2">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Thẻ Truy Vết Tin Nhắn Gốc (Bấm Copy để tìm trên Zalo):</div>
+                ${result.traces.map(t => `
+                  <div class="p-2.5 rounded-xl bg-sky-50/80 border border-sky-200/70 space-y-1">
+                    <div class="flex items-center justify-between text-[11px]">
+                      <span class="font-bold text-slate-800"><i class="fa-regular fa-user mr-1 text-sky-600"></i>${t.sender}</span>
+                      <span class="font-mono-tech text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">${t.timestamp}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 italic">"${t.snippet}"</p>
+                    <div class="flex items-center justify-between pt-1">
+                      <span class="text-[10px] text-slate-500">Keyword tìm Zalo:</span>
+                      <button type="button" data-copy-kw="${t.searchKeyword.replace(/"/g, '&quot;')}" class="copy-trace-kw px-2 py-0.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-mono-tech font-medium flex items-center gap-1 transition">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>${t.searchKeyword}</span>
+                      </button>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>`;
+            }
+
+            aiCard.innerHTML = `
+              <div class="text-slate-800 leading-relaxed">${result.answer.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</div>
+              ${tracesHtml}
+            `;
+            feed.appendChild(aiCard);
+
+            // Attach copy listeners to new trace cards
+            aiCard.querySelectorAll(".copy-trace-kw").forEach(btn => {
+              btn.addEventListener("click", () => {
+                const kw = btn.dataset.copyKw;
+                this.copyToClipboard(kw, "từ khóa tìm trên Zalo");
+                // Also highlight in grid for instant local verification
+                document.getElementById("quick-formula-search").value = kw;
+                document.getElementById("filter-keyword").value = kw;
+                this.renderGrid();
+              });
+            });
+
+            feed.scrollTop = feed.scrollHeight;
+          } catch (err) {
+            loadingBubble.innerHTML = `<span class="text-rose-600">${err.message}</span>`;
+          }
+        });
+      },
+
+      openGenericPrompt({ title, desc, label1, placeholder1, defaultVal1 = "", showInput2 = false, label2 = "", onConfirm }) {
+        document.getElementById("prompt-modal-title").textContent = title;
+        document.getElementById("prompt-modal-desc").textContent = desc;
+        document.getElementById("prompt-input-1-label").textContent = label1;
+        const in1 = document.getElementById("prompt-input-1");
+        in1.placeholder = placeholder1;
+        in1.value = defaultVal1;
+        in1.type = showInput2 ? "text" : "password";
+
+        const wrap2 = document.getElementById("prompt-input-2-wrapper");
+        const in2 = document.getElementById("prompt-input-2");
+        in2.value = "";
+        if (showInput2) {
+          wrap2.classList.remove("hidden");
+          document.getElementById("prompt-input-2-label").textContent = label2;
+        } else {
+          wrap2.classList.add("hidden");
+        }
+
+        this.promptCallback = onConfirm;
+        document.getElementById("modal-generic-prompt").classList.remove("hidden");
+        in1.focus();
+      },
+
+      bindSecurityAndTabEvents() {
+        document.getElementById("prompt-modal-form").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const v1 = document.getElementById("prompt-input-1").value.trim();
+          const v2 = document.getElementById("prompt-input-2").value.trim();
+          document.getElementById("modal-generic-prompt").classList.add("hidden");
+          if (this.promptCallback) await this.promptCallback(v1, v2);
+        });
+
+        // Add new personal sheet tab
+        document.getElementById("btn-add-sheet-tab").addEventListener("click", () => {
+          this.openGenericPrompt({
+            title: "Tạo Tab Làm Việc Cá Nhân Mới",
+            desc: "Mỗi đồng nghiệp có thể tạo Tab riêng trên link dùng chung và đặt mật khẩu bảo vệ nếu muốn.",
+            label1: "Tên Tab (VD: Anh Quân, Đình Dương, Nhóm C&I):",
+            placeholder1: "Nhập tên Tab...",
+            showInput2: true,
+            label2: "Mật khẩu khóa Tab (Tùy chọn - bỏ trống nếu dùng chung):",
+            onConfirm: async (tabName, password) => {
+              if (!tabName) return;
+              const hash = await SecurityModule.hashPassword(password);
+              const newTab = {
+                id: "tab-" + Date.now(),
+                name: tabName,
+                passwordHash: hash,
+                messages: [],
+                createdAt: Date.now()
+              };
+              if (hash) SecurityModule.unlockedTabIds.add(newTab.id);
+              await DedupeStorageModule.saveTab(newTab);
+              DedupeStorageModule.setActiveTab(newTab.id);
+              this.showToast(`Đã tạo Tab "${tabName}"`, "success");
+            }
+          });
+        });
+
+        // Rename active tab
+        document.getElementById("btn-rename-tab").addEventListener("click", () => {
+          const tab = DedupeStorageModule.getActiveTab();
+          if (!tab || SecurityModule.isTabLocked(tab)) return;
+          this.openGenericPrompt({
+            title: "Đổi Tên Tab",
+            desc: "Nhập tên mới cho Tab hiện tại:",
+            label1: "Tên Tab mới:",
+            placeholder1: tab.name,
+            defaultVal1: tab.name,
+            showInput2: false,
+            onConfirm: async (newName) => {
+              if (!newName) return;
+              tab.name = newName;
+              await DedupeStorageModule.saveTab(tab);
+              this.showToast("Đã đổi tên Tab", "success");
+            }
+          });
+          document.getElementById("prompt-input-1").type = "text";
+        });
+
+        // Set / Change Tab Password
+        document.getElementById("btn-set-tab-password").addEventListener("click", () => {
+          const tab = DedupeStorageModule.getActiveTab();
+          if (!tab || SecurityModule.isTabLocked(tab)) {
+            this.showToast("Vui lòng mở khóa Tab trước khi đổi mật khẩu", "warning");
+            return;
+          }
+          this.openGenericPrompt({
+            title: `Cài Mật Khẩu Cho Tab "${tab.name}"`,
+            desc: "Người khác truy cập link dùng chung sẽ phải nhập mật khẩu này mới xem được tin nhắn trong Tab của bạn.",
+            label1: "Nhập mật khẩu mới:",
+            placeholder1: "Nhập mật khẩu...",
+            showInput2: false,
+            onConfirm: async (pwd) => {
+              if (!pwd) return;
+              tab.passwordHash = await SecurityModule.hashPassword(pwd);
+              SecurityModule.unlockedTabIds.add(tab.id);
+              await DedupeStorageModule.saveTab(tab);
+              this.showToast(`Đã bật khóa mật khẩu cho Tab "${tab.name}"`, "success");
+            }
+          });
+        });
+
+        // Lock Tab Immediately
+        document.getElementById("btn-lock-tab-now").addEventListener("click", () => {
+          const tab = DedupeStorageModule.getActiveTab();
+          if (!tab || !tab.passwordHash) {
+            this.showToast("Tab này chưa cài mật khẩu. Hãy chọn 'Cài Mật Khẩu' trước.", "warning");
+            return;
+          }
+          SecurityModule.lockTab(tab.id);
+          this.renderAll();
+          this.showToast(`Đã khóa Tab "${tab.name}"`, "info");
+        });
+
+        // Remove Tab Password
+        document.getElementById("btn-remove-tab-password").addEventListener("click", async () => {
+          const tab = DedupeStorageModule.getActiveTab();
+          if (!tab || SecurityModule.isTabLocked(tab)) return;
+          tab.passwordHash = "";
+          await DedupeStorageModule.saveTab(tab);
+          this.showToast(`Đã gỡ mật khẩu khỏi Tab "${tab.name}"`, "info");
+        });
+
+        // Unlock Tab Form
+        document.getElementById("unlock-tab-form").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const tab = DedupeStorageModule.getActiveTab();
+          const pwdInput = document.getElementById("unlock-password-input");
+          const ok = await SecurityModule.verifyAndUnlock(tab, pwdInput.value);
+          if (ok) {
+            pwdInput.value = "";
+            document.getElementById("unlock-error-msg").classList.add("hidden");
+            this.renderAll();
+            this.showToast(`Đã mở khóa Tab "${tab.name}"`, "success");
+          } else {
+            document.getElementById("unlock-error-msg").classList.remove("hidden");
+          }
+        });
+      },
+
+      renderSheetTabs() {
+        const list = document.getElementById("sheet-tabs-list");
+        const activeTab = DedupeStorageModule.getActiveTab();
+
+        list.innerHTML = DedupeStorageModule.state.tabs.map(tab => {
+          const isActive = activeTab && tab.id === activeTab.id;
+          const hasLock = Boolean(tab.passwordHash);
+          const isLocked = SecurityModule.isTabLocked(tab);
+          return `
+            <button data-tab-id="${tab.id}" class="sheet-tab px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0 ${isActive ? 'active' : 'text-slate-600 hover:bg-white/60'}">
+              ${hasLock ? `<i class="fa-solid ${isLocked ? 'fa-lock text-amber-600' : 'fa-lock-open text-emerald-600'} text-[10px]"></i>` : `<i class="fa-regular fa-file-lines text-slate-400 text-[10px]"></i>`}
+              <span>${tab.name}</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/70 text-slate-600">${(tab.messages || []).length}</span>
+            </button>
+          `;
+        }).join("");
+
+        list.querySelectorAll(".sheet-tab").forEach(btn => {
+          btn.addEventListener("click", () => {
+            DedupeStorageModule.setActiveTab(btn.dataset.tabId);
+          });
+        });
+      },
+
+      populateGroupFilter() {
+        const tab = DedupeStorageModule.getActiveTab();
+        const select = document.getElementById("filter-group");
+        const currentVal = select.value;
+        const groups = tab && !SecurityModule.isTabLocked(tab)
+          ? Array.from(new Set((tab.messages || []).map(m => m.group)))
+          : [];
+
+        select.innerHTML = `<option value="ALL">Tất cả nhóm (${groups.length})</option>` +
+          groups.map(g => `<option value="${g}">${g}</option>`).join("");
+
+        if (groups.includes(currentVal)) {
+          select.value = currentVal;
+        }
+      },
+
+      highlightText(text, keyword) {
+        if (!keyword) return text;
+        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return text.replace(new RegExp(`(${escaped})`, 'gi'), '<span class="highlight-mark">$1</span>');
+      },
+
+      renderGrid() {
+        const tab = DedupeStorageModule.getActiveTab();
+        const lockScreen = document.getElementById("tab-lock-screen");
+        const tbody = document.getElementById("messages-tbody");
+        const emptyState = document.getElementById("empty-grid-state");
+
+        if (!tab) return;
+
+        // Check password lock state
+        if (SecurityModule.isTabLocked(tab)) {
+          document.getElementById("lock-screen-title").textContent = `Tab "${tab.name}" đang khóa bảo mật`;
+          lockScreen.classList.remove("hidden");
+          tbody.innerHTML = "";
+          document.getElementById("stats-counter").textContent = "Đã khóa 🔒";
+          return;
+        } else {
+          lockScreen.classList.add("hidden");
+        }
+
+        const filtered = this.getFilteredMessages();
+        const kw = document.getElementById("quick-formula-search").value.trim();
+        const padClass = this.isCompactRows ? "py-1.5" : "py-2.5";
+
+        document.getElementById("stats-counter").textContent = `${filtered.length} / ${(tab.messages || []).length} tin`;
+        document.getElementById("summary-msg-count").textContent = filtered.length;
+        document.getElementById("grid-sheet-title").textContent = `Sheet: ${tab.name}`;
+
+        if (!filtered.length) {
+          tbody.innerHTML = "";
+          emptyState.classList.remove("hidden");
+          return;
+        }
+
+        emptyState.classList.add("hidden");
+        tbody.innerHTML = filtered.map((msg, idx) => {
+          const timeDisplay = msg.timestamp.replace("T", " ");
+          const kwBadges = (msg.keywords || []).map(k =>
+            `<button type="button" data-kw="${k.replace(/"/g, '&quot;')}" class="grid-kw-pill inline-block px-1.5 py-0.5 m-0.5 rounded bg-sky-500/15 hover:bg-sky-600 hover:text-white text-sky-800 font-mono-tech text-[10px] font-medium transition">${k}</button>`
+          ).join("");
+
+          return `
+            <tr class="excel-row transition-colors">
+              <td class="${padClass} px-2.5 text-center font-mono-tech text-[11px] text-slate-400 border-r border-slate-200/50">${idx + 1}</td>
+              <td class="${padClass} px-3 font-mono-tech text-[11px] text-slate-600 whitespace-nowrap border-r border-slate-200/50">${timeDisplay}</td>
+              <td class="${padClass} px-3 text-[11px] font-medium text-slate-700 border-r border-slate-200/50">${this.highlightText(msg.group, kw)}</td>
+              <td class="${padClass} px-3 text-[11px] font-semibold text-sky-900 border-r border-slate-200/50">${this.highlightText(msg.sender, kw)}</td>
+              <td class="${padClass} px-3 text-xs text-slate-800 leading-relaxed border-r border-slate-200/50">${this.highlightText(msg.content, kw)}</td>
+              <td class="${padClass} px-2.5">${kwBadges}</td>
+            </tr>
+          `;
+        }).join("");
+
+        tbody.querySelectorAll(".grid-kw-pill").forEach(btn => {
+          btn.addEventListener("click", () => {
+            this.copyToClipboard(btn.dataset.kw, "từ khóa tìm trên Zalo");
+          });
+        });
+      },
+
+      renderAll() {
+        this.renderSheetTabs();
+        this.populateGroupFilter();
+        this.renderGrid();
+      }
+    };
+
+    window.addEventListener("DOMContentLoaded", () => {
+      UIController.init();
+    });
+  </script>
+</body>
+</html>
